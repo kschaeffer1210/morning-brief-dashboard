@@ -1,10 +1,7 @@
-import { Redis } from '@upstash/redis'
+import Redis from 'ioredis'
 import { NextRequest, NextResponse } from 'next/server'
 
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL!,
-  token: process.env.KV_REST_API_TOKEN!,
-})
+const redis = new Redis(process.env.REDIS_URL!)
 
 export async function POST(req: NextRequest) {
   // Auth check
@@ -16,14 +13,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const payload = await req.json()
-
-    // Basic shape validation
     if (!payload || typeof payload !== 'object') {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
-
-    await redis.set('morning-brief-latest', payload)
-
+    await redis.set('morning-brief-latest', JSON.stringify(payload))
     return NextResponse.json({ ok: true, stored: 'morning-brief-latest' })
   } catch (err) {
     console.error('[ingest/POST]', err)
