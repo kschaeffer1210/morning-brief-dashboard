@@ -1,5 +1,10 @@
-import { kv } from '@vercel/kv'
+import { Redis } from '@upstash/redis'
 import { NextRequest, NextResponse } from 'next/server'
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL!,
+  token: process.env.KV_REST_API_TOKEN!,
+})
 
 export async function POST(req: NextRequest) {
   // Auth check
@@ -17,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
 
-    await kv.set('morning-brief-latest', payload)
+    await redis.set('morning-brief-latest', payload)
 
     return NextResponse.json({ ok: true, stored: 'morning-brief-latest' })
   } catch (err) {
