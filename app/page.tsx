@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,11 +43,6 @@ interface Brief {
   jobs?: Job[]
 }
 
-interface ChatMessage {
-  role: 'user' | 'assistant'
-  text: string
-}
-
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const FLAG_COLORS: Record<string, string> = {
@@ -65,11 +60,6 @@ export default function MorningBrief() {
   const [briefLoading, setBriefLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('summary')
   const [checkedEmails, setCheckedEmails] = useState<Record<number, boolean>>({})
-  const [chatOpen, setChatOpen] = useState(false)
-  const [chatInput, setChatInput] = useState('')
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
-  const [chatLoading, setChatLoading] = useState(false)
-  const chatBottomRef = useRef<HTMLDivElement>(null)
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
@@ -83,37 +73,8 @@ export default function MorningBrief() {
       .catch(() => setBriefLoading(false))
   }, [])
 
-  // Scroll chat to bottom
-  useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chatMessages])
-
   const toggleEmail = (i: number) =>
     setCheckedEmails(prev => ({ ...prev, [i]: !prev[i] }))
-
-  const sendChat = async () => {
-    const msg = chatInput.trim()
-    if (!msg || chatLoading) return
-    setChatInput('')
-    const next: ChatMessage[] = [...chatMessages, { role: 'user', text: msg }]
-    setChatMessages(next)
-    setChatLoading(true)
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: next.map(m => ({ role: m.role, content: m.text })),
-          brief,
-        }),
-      })
-      const data = await res.json()
-      setChatMessages(m => [...m, { role: 'assistant', text: data.reply || 'Something went wrong.' }])
-    } catch {
-      setChatMessages(m => [...m, { role: 'assistant', text: 'Connection issue. Try again.' }])
-    }
-    setChatLoading(false)
-  }
 
   const cal = brief?.calendar ?? []
   const emails = brief?.emails ?? []
@@ -143,13 +104,6 @@ export default function MorningBrief() {
         .flag { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; padding: 3px 8px; border: 1px solid; display: inline-block; }
         .job-link { color: #d4a5a0; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; border-bottom: 1px solid #d4a5a066; padding-bottom: 1px; transition: border-color 0.2s; }
         .job-link:hover { border-color: #d4a5a0; }
-        .chat-btn { background: none; border: 1px solid #2e2c2a; color: #9a9590; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 16px; transition: all 0.2s; }
-        .chat-btn:hover { border-color: #d4a5a0; color: #d4a5a0; }
-        .chat-input { background: #1c1a18; border: 1px solid #2e2c2a; color: #f0ece6; font-family: 'Montserrat', sans-serif; font-size: 12px; padding: 10px 14px; width: 100%; outline: none; transition: border-color 0.2s; }
-        .chat-input:focus { border-color: #d4a5a066; }
-        .send-btn { background: #d4a5a0; border: none; color: #1c1a18; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 10px 20px; transition: opacity 0.2s; flex-shrink: 0; }
-        .send-btn:hover { opacity: 0.85; }
-        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .checkbox-wrap { width: 16px; height: 16px; border: 1px solid #3a3633; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color 0.2s; }
         .checkbox-wrap:hover { border-color: #d4a5a0; }
         .checkbox-checked { border-color: #d4a5a0; background: #d4a5a011; }
@@ -175,9 +129,6 @@ export default function MorningBrief() {
               {brief?.date ?? dateStr}
             </div>
           </div>
-          <button className="chat-btn" onClick={() => setChatOpen(!chatOpen)}>
-            {chatOpen ? 'Close HAL' : 'Ask HAL'}
-          </button>
         </div>
 
         {/* Tabs */}
@@ -362,56 +313,6 @@ export default function MorningBrief() {
         )}
       </div>
 
-      {/* HAL Chat Panel */}
-      {chatOpen && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: '380px',
-          background: '#1e1c1a',
-          border: '1px solid #2e2c2a',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-          zIndex: 100,
-        }} className="fade-in">
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #2e2c2a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#d4a5a0', fontWeight: 600 }}>∿ HAL</div>
-            <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: '#4a4743', cursor: 'pointer', fontSize: '16px' }}>×</button>
-          </div>
-          <div style={{ height: '240px', overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {chatMessages.length === 0 && (
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '15px', color: '#4a4743', fontStyle: 'italic' }}>
-                Ask me anything about today.
-              </div>
-            )}
-            {chatMessages.map((m, i) => (
-              <div key={i} style={{
-                fontSize: '12px',
-                lineHeight: 1.6,
-                color: m.role === 'user' ? '#f0ece6' : '#9a9590',
-                textAlign: m.role === 'user' ? 'right' : 'left',
-              }}>
-                {m.role === 'assistant' && (
-                  <span style={{ fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#d4a5a0', display: 'block', marginBottom: '4px' }}>HAL</span>
-                )}
-                {m.text}
-              </div>
-            ))}
-            {chatLoading && <div className="pulse" style={{ fontSize: '12px', color: '#4a4743' }}>Thinking...</div>}
-            <div ref={chatBottomRef} />
-          </div>
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #2e2c2a', display: 'flex', gap: '8px' }}>
-            <input
-              className="chat-input"
-              placeholder="Ask HAL..."
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && sendChat()}
-            />
-            <button className="send-btn" onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>→</button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
